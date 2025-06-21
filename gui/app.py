@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, TclError
 
 from core.project_manager import ProjectManager
 from core.translator import translation_process
+# Используем УЖЕ ИСПРАВЛЕННЫЙ ApiKeyManager
 from core.api_key_manager import ApiKeyManager
 
 FALLBACK_MODELS = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-1.0-pro"]
@@ -86,8 +87,6 @@ class App(ctk.CTk):
                         selected_text = widget.get("sel.first", "sel.last")
                         pyperclip.copy(selected_text)
                     except TclError:
-                        # Если виджет заблокирован, get("sel.first") вызовет ошибку.
-                        # Но нам все равно нужно, чтобы системное копирование не сработало.
                         pass
                     return "break"
                 elif key == 'x':
@@ -104,6 +103,7 @@ class App(ctk.CTk):
                     elif isinstance(widget, ctk.CTkTextbox):
                         widget.tag_add("sel", "1.0", "end")
                     return "break"
+
         widget.bind("<KeyPress>", on_key_press)
 
     def build_ui(self):
@@ -117,17 +117,20 @@ class App(ctk.CTk):
         self.project_menu.pack(pady=5, padx=10, fill="x")
         ctk.CTkButton(left_panel, text="Новый проект", command=self.create_new_project).pack(pady=5, padx=10, fill="x")
         ctk.CTkButton(left_panel, text="Сохранить проект", command=self.save_project).pack(pady=5, padx=10, fill="x")
-        ctk.CTkButton(left_panel, text="Удалить проект", fg_color="red", hover_color="#C41E3A", command=self.delete_project).pack(pady=5, padx=10, fill="x")
+        ctk.CTkButton(left_panel, text="Удалить проект", fg_color="red", hover_color="#C41E3A",
+                      command=self.delete_project).pack(pady=5, padx=10, fill="x")
         separator1 = ctk.CTkFrame(left_panel, height=2, fg_color="gray50")
         separator1.pack(pady=10, fill="x", padx=5)
         ctk.CTkLabel(left_panel, text="Настройки проекта", font=bold_font).pack(pady=10)
         model_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
         model_frame.pack(pady=5, padx=10, fill="x")
         model_frame.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(model_frame, text="Модель Gemini:").grid(row=0, column=0, columnspan=2, padx=0, pady=(5, 0), sticky="w")
+        ctk.CTkLabel(model_frame, text="Модель Gemini:").grid(row=0, column=0, columnspan=2, padx=0, pady=(5, 0),
+                                                              sticky="w")
         self.model_menu = ctk.CTkOptionMenu(model_frame, variable=self.model_var, values=FALLBACK_MODELS)
         self.model_menu.grid(row=1, column=0, sticky="ew")
-        self.update_models_button = ctk.CTkButton(model_frame, text="Обновить", width=80, command=self.start_model_list_update)
+        self.update_models_button = ctk.CTkButton(model_frame, text="Обновить", width=80,
+                                                  command=self.start_model_list_update)
         self.update_models_button.grid(row=1, column=1, padx=(5, 0))
         ctk.CTkLabel(left_panel, text="Задержка между главами (сек):").pack(padx=10, pady=(10, 0), anchor="w")
         self.delay_entry = ctk.CTkEntry(left_panel, textvariable=self.delay_var)
@@ -140,7 +143,8 @@ class App(ctk.CTk):
         ctk.CTkLabel(left_panel, text="Управление", font=bold_font).pack(pady=10)
         self.start_button = ctk.CTkButton(left_panel, text="🚀 Начать перевод", command=self.start_translation)
         self.start_button.pack(pady=5, padx=10, fill="x")
-        self.stop_button = ctk.CTkButton(left_panel, text="❌ Отмена", fg_color="red", hover_color="#C41E3A", command=self.stop_translation, state="disabled")
+        self.stop_button = ctk.CTkButton(left_panel, text="❌ Отмена", fg_color="red", hover_color="#C41E3A",
+                                         command=self.stop_translation, state="disabled")
         self.stop_button.pack(pady=5, padx=10, fill="x")
         separator3 = ctk.CTkFrame(left_panel, height=2, fg_color="gray50")
         separator3.pack(pady=10, fill="x", padx=5)
@@ -166,13 +170,15 @@ class App(ctk.CTk):
         self.mode_switch = ctk.CTkSegmentedButton(source_frame, values=["Файл", "Папка"], variable=self.batch_mode_var)
         self.mode_switch.grid(row=0, column=1, pady=5, sticky="w")
         ctk.CTkLabel(source_frame, text="Источник:").grid(row=1, column=0)
-        self.epub_path_entry = ctk.CTkEntry(source_frame, textvariable=self.epub_path_var, placeholder_text="Путь к файлу или папке")
+        self.epub_path_entry = ctk.CTkEntry(source_frame, textvariable=self.epub_path_var,
+                                            placeholder_text="Путь к файлу или папке")
         self.epub_path_entry.grid(row=1, column=1, sticky="ew")
         self.add_default_bindings(self.epub_path_entry)
         self.select_source_button = ctk.CTkButton(source_frame, text="...", width=40, command=self.select_source)
         self.select_source_button.grid(row=1, column=2, padx=5)
         ctk.CTkLabel(source_frame, text="Папка/Файл\nрезультата:").grid(row=2, column=0)
-        self.output_path_entry = ctk.CTkEntry(source_frame, textvariable=self.output_path_var, placeholder_text="Путь для сохранения")
+        self.output_path_entry = ctk.CTkEntry(source_frame, textvariable=self.output_path_var,
+                                              placeholder_text="Путь для сохранения")
         self.output_path_entry.grid(row=2, column=1, sticky="ew")
         self.add_default_bindings(self.output_path_entry)
         self.select_output_button = ctk.CTkButton(source_frame, text="...", width=40, command=self.select_output)
@@ -199,20 +205,15 @@ class App(ctk.CTk):
         self.progress_label.pack(pady=5, padx=10)
         self.progress_bar.set(0)
 
-        # <--- НАЧАЛО ИЗМЕНЕНИЙ: Панель лога ---
         log_frame = ctk.CTkFrame(self)
         log_frame.grid(row=3, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
         log_frame.grid_rowconfigure(0, weight=1)
         log_frame.grid_columnconfigure(0, weight=1)
-
         self.log_textbox = ctk.CTkTextbox(log_frame, state="disabled", font=unicode_font)
-        self.log_textbox.grid(row=0, column=0, sticky="nsew", padx=5, pady=(5,0))
-        # Применяем биндинги, чтобы можно было копировать текст даже из заблокированного поля
+        self.log_textbox.grid(row=0, column=0, sticky="nsew", padx=5, pady=(5, 0))
         self.add_default_bindings(self.log_textbox)
-
         self.save_log_button = ctk.CTkButton(log_frame, text="Сохранить лог в файл", command=self.save_log)
         self.save_log_button.grid(row=1, column=0, padx=5, pady=5, sticky="ew")
-        # <--- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     def select_source(self):
         if self.batch_mode_var.get() == "Файл":
@@ -231,14 +232,12 @@ class App(ctk.CTk):
             path = filedialog.askdirectory(title="Выберите папку для сохранения результатов")
             if path: self.output_path_var.set(path)
 
-    # <--- НОВЫЙ МЕТОД: Сохранение лога ---
     def save_log(self):
-        # Временно разблокируем, чтобы получить текст, затем снова заблокируем
         self.log_textbox.configure(state="normal")
         log_content = self.log_textbox.get("1.0", "end-1c")
-        if not self.is_running: # Если процесс не идет, оставляем разблокированным
+        if not self.is_running:
             pass
-        else: # Если процесс идет, возвращаем блокировку
+        else:
             self.log_textbox.configure(state="disabled")
 
         if not log_content.strip():
@@ -259,6 +258,7 @@ class App(ctk.CTk):
                 self.log(f"Ошибка сохранения лога: {e}")
                 messagebox.showerror("Ошибка", f"Не удалось сохранить лог:\n{e}", parent=self)
 
+    # ---> ВОТ КЛЮЧЕВАЯ ФУНКЦИЯ С ИЗМЕНЕНИЯМИ <---
     def open_key_manager_window(self):
         if hasattr(self, 'key_window') and self.key_window.winfo_exists():
             self.key_window.focus()
@@ -267,54 +267,78 @@ class App(ctk.CTk):
         self.key_window = ctk.CTkToplevel(self)
         self.key_window.title("Менеджер API ключей")
         self.key_window.geometry("500x350")
-        self.key_window.transient(self)
+        self.key_window.transient(self)  # Окно будет поверх главного
 
+        # Фрейм со списком ключей
         scrollable_frame = ctk.CTkScrollableFrame(self.key_window, label_text="Сохраненные ключи")
         scrollable_frame.pack(pady=10, padx=10, fill="both", expand=True)
-        selected_key_name = ctk.StringVar()
+        selected_key_name = ctk.StringVar()  # Не используется, но может пригодиться
 
         def refresh_key_list():
+            # Очищаем старый список
             for widget in scrollable_frame.winfo_children():
                 widget.destroy()
-            for name, value in self.key_manager.keys.items():
+            # Заполняем новым списком
+            for name in self.key_manager.get_key_names():
                 key_frame = ctk.CTkFrame(scrollable_frame)
                 key_frame.pack(fill="x", pady=2)
-                radio = ctk.CTkRadioButton(key_frame, text=name, variable=selected_key_name, value=name)
-                radio.pack(side="left", padx=5)
+                # Просто метка с именем ключа
+                ctk.CTkLabel(key_frame, text=name).pack(side="left", padx=5)
 
+                # Функция для замыкания, чтобы передать правильное имя
                 def delete_closure(key_name=name):
                     if messagebox.askyesno("Подтверждение", f"Удалить ключ '{key_name}'?", parent=self.key_window):
-                        self.key_manager.delete_key(key_name)
-                        self.update_api_key_list()
-                        refresh_key_list()
+                        success, message = self.key_manager.delete_key(key_name)
+                        if success:
+                            self.update_api_key_list()
+                            refresh_key_list()
+                        else:
+                            # Показываем ошибку, если не удалось удалить (например, нет прав на запись)
+                            messagebox.showerror("Ошибка", message, parent=self.key_window)
 
                 ctk.CTkButton(key_frame, text="Удалить", width=60, fg_color="red", command=delete_closure).pack(
                     side="right", padx=5)
 
         refresh_key_list()
 
+        # ---> ДОБАВЛЕНЫ ПОЛЯ ВВОДА И КНОПКА СОХРАНЕНИЯ <---
+        # Фрейм для добавления нового ключа
         entry_frame = ctk.CTkFrame(self.key_window)
         entry_frame.pack(pady=10, padx=10, fill="x")
-        ctk.CTkLabel(entry_frame, text="Имя:").grid(row=0, column=0, padx=5)
-        name_entry = ctk.CTkEntry(entry_frame)
-        name_entry.grid(row=0, column=1, padx=5, sticky="ew")
+
+        ctk.CTkLabel(entry_frame, text="Имя:").grid(row=0, column=0, padx=5, pady=5)
+        name_entry = ctk.CTkEntry(entry_frame, placeholder_text="Название для ключа (например, 'Мой ключ 1')")
+        name_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
         self.add_default_bindings(name_entry)
-        ctk.CTkLabel(entry_frame, text="Ключ:").grid(row=1, column=0, padx=5)
-        value_entry = ctk.CTkEntry(entry_frame)
-        value_entry.grid(row=1, column=1, padx=5, sticky="ew")
+
+        ctk.CTkLabel(entry_frame, text="Ключ:").grid(row=1, column=0, padx=5, pady=5)
+        value_entry = ctk.CTkEntry(entry_frame, placeholder_text="Вставьте сам API-ключ сюда")
+        value_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
         self.add_default_bindings(value_entry)
+
         entry_frame.grid_columnconfigure(1, weight=1)
 
+        # Функция, которая будет вызываться при нажатии кнопки
         def save_key():
             name, value = name_entry.get(), value_entry.get()
+            # Вызываем исправленный метод, который возвращает результат
             success, message = self.key_manager.add_or_update_key(name, value)
+
+            # Показываем пользователю результат операции
             if success:
+                # Если все хорошо, обновляем списки и очищаем поля
                 refresh_key_list()
                 self.update_api_key_list()
+                # Выбираем только что добавленный ключ в главном окне
+                self.api_key_menu.set(name.strip())
                 name_entry.delete(0, "end")
                 value_entry.delete(0, "end")
-            messagebox.showinfo("Результат", message, parent=self.key_window)
+                messagebox.showinfo("Успех", message, parent=self.key_window)
+            else:
+                # Если произошла ошибка, показываем ее
+                messagebox.showerror("Ошибка", message, parent=self.key_window)
 
+        # САМА КНОПКА СОХРАНЕНИЯ
         ctk.CTkButton(self.key_window, text="Сохранить / Обновить ключ", command=save_key).pack(pady=10, padx=10,
                                                                                                 fill="x")
 
@@ -426,7 +450,6 @@ class App(ctk.CTk):
         self.stop_button.configure(state="normal")
         self.project_menu.configure(state="disabled")
 
-        # <--- ИЗМЕНЕНИЕ: Очищаем и блокируем лог перед запуском
         self.log_textbox.configure(state="normal")
         self.log_textbox.delete("1.0", "end")
         self.log_textbox.configure(state="disabled")
@@ -597,7 +620,6 @@ class App(ctk.CTk):
                     self.log("✅ Перевод успешно завершен!")
                 elif message == "error":
                     self.log(f"❌ ОШИБКА: {data}")
-                    # <--- ИЗМЕНЕНИЕ: Разблокируем лог для копирования
                     self.log_textbox.configure(state="normal")
                 elif message == "finish_signal":
                     self.translation_finished()
@@ -619,5 +641,4 @@ class App(ctk.CTk):
         self.start_button.configure(state="normal")
         self.stop_button.configure(text="❌ Отмена", state="disabled")
         self.project_menu.configure(state="normal")
-        # <--- ИЗМЕНЕНИЕ: Разблокируем лог после завершения для копирования
         self.log_textbox.configure(state="normal")
