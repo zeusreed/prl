@@ -264,7 +264,7 @@ class App(ctk.CTk):
 
         self.key_window = ctk.CTkToplevel(self)
         self.key_window.title("Менеджер API ключей")
-        self.key_window.geometry("500x350")
+        self.key_window.geometry("500x420")
         self.key_window.transient(self)  # Окно будет поверх главного
 
         # Фрейм со списком ключей
