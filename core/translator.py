@@ -9,13 +9,11 @@ import ebooklib
 from ebooklib import epub
 from bs4 import BeautifulSoup
 from docx import Document
-# <-- ИЗМЕНЕНИЕ: Мы будем использовать этот импорт для надежной обработки ошибок
 from google.api_core.exceptions import ResourceExhausted
 
 from .project_manager import PROJECTS_DIR, ProjectManager
 
 
-# Обычная, последовательная функция перевода
 def translation_process(project_data, progress_queue, stop_event):
     pm = ProjectManager()
     try:
@@ -80,7 +78,6 @@ def translation_process(project_data, progress_queue, stop_event):
 
             prompt = project_data["prompt"].format(text_to_translate=original_text)
 
-            # --- НАЧАЛО ИЗМЕНЕНИЙ: Улучшенный механизм повторных попыток ---
             translated_text = ""
             max_retries = 5
             retry_delay = 10
@@ -96,7 +93,6 @@ def translation_process(project_data, progress_queue, stop_event):
                     progress_queue.put(("log", f"Глава {i + 1}: Ответ от API получен."))
                     break  # Если запрос успешен, выходим из цикла попыток
 
-                # <-- ИЗМЕНЕНИЕ: Ловим КОНКРЕТНУЮ ошибку исчерпания квоты
                 except ResourceExhausted as e:
                     progress_queue.put((
                         "log",
@@ -110,13 +106,11 @@ def translation_process(project_data, progress_queue, stop_event):
                     if stop_event.is_set(): break
                     retry_delay *= 2  # Удваиваем задержку (10s, 20s, 40s...)
 
-                # <-- ИЗМЕНЕНИЕ: Ловим все остальные ошибки API, которые не являются ошибкой квоты
                 except Exception as e:
                     # Если это любая другая ошибка (неверный ключ, проблема с моделью и т.д.),
                     # нет смысла пытаться снова. Пробрасываем ее наверх, чтобы остановить процесс.
                     progress_queue.put(("log", f"Критическая ошибка API: {e}"))
                     raise e
-            # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
             if stop_event.is_set():
                 break

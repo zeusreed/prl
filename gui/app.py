@@ -11,7 +11,6 @@ from tkinter import filedialog, messagebox, TclError
 
 from core.project_manager import ProjectManager
 from core.translator import translation_process
-# Используем УЖЕ ИСПРАВЛЕННЫЙ ApiKeyManager
 from core.api_key_manager import ApiKeyManager
 
 FALLBACK_MODELS = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-1.0-pro"]
@@ -258,7 +257,6 @@ class App(ctk.CTk):
                 self.log(f"Ошибка сохранения лога: {e}")
                 messagebox.showerror("Ошибка", f"Не удалось сохранить лог:\n{e}", parent=self)
 
-    # ---> ВОТ КЛЮЧЕВАЯ ФУНКЦИЯ С ИЗМЕНЕНИЯМИ <---
     def open_key_manager_window(self):
         if hasattr(self, 'key_window') and self.key_window.winfo_exists():
             self.key_window.focus()
@@ -301,7 +299,6 @@ class App(ctk.CTk):
 
         refresh_key_list()
 
-        # ---> ДОБАВЛЕНЫ ПОЛЯ ВВОДА И КНОПКА СОХРАНЕНИЯ <---
         # Фрейм для добавления нового ключа
         entry_frame = ctk.CTkFrame(self.key_window)
         entry_frame.pack(pady=10, padx=10, fill="x")
@@ -338,7 +335,6 @@ class App(ctk.CTk):
                 # Если произошла ошибка, показываем ее
                 messagebox.showerror("Ошибка", message, parent=self.key_window)
 
-        # САМА КНОПКА СОХРАНЕНИЯ
         ctk.CTkButton(self.key_window, text="Сохранить / Обновить ключ", command=save_key).pack(pady=10, padx=10,
                                                                                                 fill="x")
 
