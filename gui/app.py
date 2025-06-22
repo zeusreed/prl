@@ -189,10 +189,23 @@ class App(ctk.CTk):
         self.grid_rowconfigure(1, weight=1)
         self.prompt_textbox = ctk.CTkTextbox(self.tab_view.tab("Промпт"), font=unicode_font)
         self.prompt_textbox.pack(expand=True, fill="both", padx=5, pady=5)
+
+        default_prompt = (
+            "You are a professional literary translator. Translate the following text from English into Russian.\n"
+            "Preserve the original style, tone, and formatting (paragraphs, line breaks). "
+            "Translate the meaning accurately, not just word for word.\n"
+            "{glossary}\n"
+            "Text to translate:\n"
+            "---\n"
+            "{text_to_translate}"
+        )
+        self.prompt_textbox.insert("0.0", default_prompt)
+
         self.add_default_bindings(self.prompt_textbox)
         self.glossary_textbox = ctk.CTkTextbox(self.tab_view.tab("Глоссарий"), font=unicode_font)
         self.glossary_textbox.pack(expand=True, fill="both", padx=5, pady=5)
-        self.glossary_textbox.insert("0.0", "# Формат: Оригинал -> Перевод\n# Пример:\n(?i)naruto -> Наруто")
+        self.glossary_textbox.insert("0.0",
+                                     "# Формат: Оригинал -> Перевод\n# RegEx поддерживается, если включен флажок.\n# Пример:\n(?i)naruto -> Наруто\nshinobi -> шиноби")
         self.add_default_bindings(self.glossary_textbox)
 
         progress_frame = ctk.CTkFrame(self)

@@ -20,6 +20,27 @@ def translation_process(project_data, progress_queue, stop_event):
         project_name = project_data["project_name"]
         completed_chapters_list = project_data["completed_chapters_list"]
 
+        user_prompt = project_data["prompt"]
+        if "{text_to_translate}" not in user_prompt:
+            progress_queue.put(("log", "⚠️ Обнаружен старый формат промпта. Автоматически модернизируем его."))
+            modern_prompt_template = (
+                "{user_prompt_text}\n\n"
+                "You are a professional literary translator. Translate the following text from English into Russian.\n"
+                "Preserve the original style, tone, and formatting (paragraphs, line breaks). "
+                "Translate the meaning accurately, not just word for word.\n"
+                "{glossary}\n"
+                "Text to translate:\n"
+                "---\n"
+                "{text_to_translate}"
+            )
+            final_prompt_template = modern_prompt_template.format(
+                user_prompt_text=user_prompt,
+                glossary="{glossary}",
+                text_to_translate="{text_to_translate}"
+            )
+        else:
+            final_prompt_template = user_prompt
+
         temp_dir = os.path.join(PROJECTS_DIR, project_name, "temp")
         if not project_data["resume"]:
             if os.path.exists(temp_dir):
@@ -30,6 +51,7 @@ def translation_process(project_data, progress_queue, stop_event):
         genai.configure(api_key=project_data["api_key"])
         model = genai.GenerativeModel(project_data["model"])
 
+        # 1. Парсим глоссарий из текстового поля
         glossary = {}
         for line in project_data["glossary"].split('\n'):
             if '->' in line and not line.strip().startswith('#'):
@@ -37,6 +59,16 @@ def translation_process(project_data, progress_queue, stop_event):
                 original, translation = parts[0].strip(), parts[1].strip()
                 if original and translation:
                     glossary[original] = translation
+
+        # 2. Формируем инструкции для AI на основе глоссария
+        glossary_instructions = ""
+        if glossary:
+            instructions_list = ["\nStrictly follow these translation rules:"]
+            for original, translation in glossary.items():
+                original_clean = original.strip("'\"")
+                translation_clean = translation.strip("'\"")
+                instructions_list.append(f'- Translate "{original_clean}" as "{translation_clean}".')
+            glossary_instructions = "\n".join(instructions_list) + "\n"
 
         progress_queue.put(("log", f"Используется модель: {project_data['model']}"))
         book = epub.read_epub(project_data["epub_path"])
@@ -62,25 +94,23 @@ def translation_process(project_data, progress_queue, stop_event):
                 progress_queue.put(("progress", (i + 1, total_items)))
                 continue
 
-            if project_data["use_regex"]:
-                for original, translation in glossary.items():
-                    try:
-                        original_text = re.sub(original, translation, original_text)
-                    except re.error as e:
-                        progress_queue.put(("log", f"Ошибка RegEx: '{original}' -> {e}"))
-            else:
-                for original, translation in glossary.items():
-                    original_text = original_text.replace(original, translation)
-
-            if not original_text.strip():
-                progress_queue.put(("log", f"Глава {i + 1} стала пустой после глоссария. Пропускаем."))
-                continue
-
-            prompt = project_data["prompt"].format(text_to_translate=original_text)
+            # 3. Собираем финальный промпт, вставляя инструкции и текст для перевода
+            # Используем `final_prompt_template`, который был подготовлен в начале функции
+            prompt = final_prompt_template.format(
+                glossary=glossary_instructions,
+                text_to_translate=original_text
+            )
 
             translated_text = ""
             max_retries = 5
             retry_delay = 10
+
+            safety_settings = {
+                "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+                "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+                "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
+            }
 
             for attempt in range(max_retries):
                 if stop_event.is_set():
@@ -88,10 +118,23 @@ def translation_process(project_data, progress_queue, stop_event):
                 try:
                     progress_queue.put(
                         ("log", f"Глава {i + 1}: Отправка запроса в API (попытка {attempt + 1}/{max_retries})..."))
-                    response = model.generate_content(prompt)
-                    translated_text = response.text if response.text else ""
+
+                    response = model.generate_content(prompt, safety_settings=safety_settings)
+
+                    try:
+                        translated_text = response.text
+                    except ValueError:
+                        finish_reason = "Неизвестно"
+                        if response.prompt_feedback and response.prompt_feedback.block_reason:
+                            finish_reason = f"Заблокировано по причине: {response.prompt_feedback.block_reason.name}"
+                        elif response.candidates and response.candidates[0].finish_reason:
+                            finish_reason = f"Причина завершения: {response.candidates[0].finish_reason.name} ({response.candidates[0].finish_reason.value})"
+
+                        progress_queue.put(("log", f"⚠️ Глава {i + 1}: Ответ от API пустой. {finish_reason}"))
+                        translated_text = ""
+
                     progress_queue.put(("log", f"Глава {i + 1}: Ответ от API получен."))
-                    break  # Если запрос успешен, выходим из цикла попыток
+                    break
 
                 except ResourceExhausted as e:
                     progress_queue.put((
@@ -99,16 +142,13 @@ def translation_process(project_data, progress_queue, stop_event):
                         f"⚠️ Превышен лимит API для главы {i + 1}. Попытка {attempt + 1}/{max_retries}. "
                         f"Ждем {retry_delay} секунд..."
                     ))
-                    # Ждем перед следующей попыткой, проверяя сигнал остановки каждую секунду
                     for _ in range(retry_delay):
                         if stop_event.is_set(): break
                         time.sleep(1)
                     if stop_event.is_set(): break
-                    retry_delay *= 2  # Удваиваем задержку (10s, 20s, 40s...)
+                    retry_delay *= 2
 
                 except Exception as e:
-                    # Если это любая другая ошибка (неверный ключ, проблема с моделью и т.д.),
-                    # нет смысла пытаться снова. Пробрасываем ее наверх, чтобы остановить процесс.
                     progress_queue.put(("log", f"Критическая ошибка API: {e}"))
                     raise e
 
@@ -161,5 +201,4 @@ def translation_process(project_data, progress_queue, stop_event):
         import traceback
         progress_queue.put(("error", traceback.format_exc()))
     finally:
-        # Этот сигнал всегда должен отправляться, чтобы GUI разблокировался
         progress_queue.put(("finish_signal", None))
